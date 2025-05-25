@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D車運転シミュレーター</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #gameCanvas {
+            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
+            display: block;
+            flex: 1;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #speedometer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            pointer-events: auto;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            pointer-events: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s;
+            touch-action: manipulation;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #ffeb3b;
+        }
+
+        .control-btn.active {
+            transform: scale(0.95);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        #steerLeft {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+        }
+
+        #steerRight {
+            background: linear-gradient(45deg, #4ecdc4, #26a69a);
+        }
+
+        #accelerate {
+            background: linear-gradient(45deg, #4caf50, #388e3c);
+            width: 100px;
+            height: 100px;
+        }
+
+        #brake {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            width: 100px;
+            height: 100px;
+        }
+
+        .score-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            pointer-events: auto;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            pointer-events: auto;
+        }
+
+        #startBtn {
+            background: linear-gradient(45deg, #4caf50, #388e3c);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.1s;
+        }
+
+        #startBtn:active {
+            transform: scale(0.95);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div id="instructions">
+                <h2>🚗 3D車運転シミュレーター</h2>
+                <p>タブレットで本格的な運転体験！</p>
+                <br>
+                <p>🎯 目標: 道路を安全に運転しよう</p>
+                <p>⚠️ 障害物を避けて高得点を目指そう</p>
+                <button id="startBtn">ゲーム開始</button>
+            </div>
+
+            <div class="score-display">
+                <div>スコア: <span id="score">0</span></div>
+                <div>距離: <span id="distance">0</span>m</div>
+            </div>
+
+            <div id="speedometer">
+                <div>速度: <span id="speed">0</span> km/h</div>
+            </div>
+        </div>
+
+        <div id="controls" class="hidden">
+            <div class="control-group">
+                <div class="control-btn" id="steerLeft">←</div>
+                <div style="color: white; font-size: 14px;">ハンドル</div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-btn" id="brake">🛑</div>
+                <div style="color: white; font-size: 14px;">ブレーキ</div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-btn" id="accelerate">⚡</div>
+                <div style="color: white; font-size: 14px;">アクセル</div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-btn" id="steerRight">→</div>
+                <div style="color: white; font-size: 14px;">ハンドル</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class CarDrivingGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.gameState = 'menu'; // menu, playing, gameOver
+                this.score = 0;
+                this.distance = 0;
+                this.speed = 0;
+                this.maxSpeed = 120;
+                
+                // Car properties
+                this.car = {
+                    x: 0,
+                    y: 0,
+                    width: 40,
+                    height: 80,
+                    speed: 0,
+                    acceleration: 0,
+                    steering: 0,
+                    angle: 0
+                };
+                
+                this.setupCanvas();
+                
+                // Road properties
+                this.roadWidth = 300;
+                this.roadY = 0;
+                this.roadSpeed = 2;
+                
+                // Obstacles
+                this.obstacles = [];
+                this.obstacleSpawnTimer = 0;
+                
+                // Road lines
+                this.roadLines = [];
+                this.initRoadLines();
+                
+                // Input handling
+                this.keys = {};
+                this.setupControls();
+                
+                this.gameLoop = this.gameLoop.bind(this);
+                this.lastTime = 0;
+            }
+            
+            setupCanvas() {
+                const resizeCanvas = () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                    if (this.car) {
+                        this.car.x = this.canvas.width / 2;
+                        this.car.y = this.canvas.height - 150;
+                    }
+                };
+                
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            }
+            
+            initRoadLines() {
+                this.roadLines = [];
+                for (let i = 0; i < 20; i++) {
+                    this.roadLines.push({
+                        y: i * 60,
+                        x: this.canvas ? this.canvas.width / 2 : window.innerWidth / 2
+                    });
+                }
+            }
+            
+            setupControls() {
+                const startBtn = document.getElementById('startBtn');
+                const accelerateBtn = document.getElementById('accelerate');
+                const brakeBtn = document.getElementById('brake');
+                const steerLeftBtn = document.getElementById('steerLeft');
+                const steerRightBtn = document.getElementById('steerRight');
+                
+                startBtn.addEventListener('click', () => this.startGame());
+                
+                // Touch events for mobile
+                const addTouchControls = (btn, action) => {
+                    const handleStart = (e) => {
+                        e.preventDefault();
+                        this.keys[action] = true;
+                        btn.classList.add('active');
+                        console.log(`${action} pressed`); // Debug log
+                    };
+                    
+                    const handleEnd = (e) => {
+                        e.preventDefault();
+                        this.keys[action] = false;
+                        btn.classList.remove('active');
+                        console.log(`${action} released`); // Debug log
+                    };
+                    
+                    btn.addEventListener('touchstart', handleStart, { passive: false });
+                    btn.addEventListener('touchend', handleEnd, { passive: false });
+                    btn.addEventListener('touchcancel', handleEnd, { passive: false });
+                    btn.addEventListener('mousedown', handleStart);
+                    btn.addEventListener('mouseup', handleEnd);
+                    btn.addEventListener('mouseleave', handleEnd);
+                };
+                
+                addTouchControls(accelerateBtn, 'accelerate');
+                addTouchControls(brakeBtn, 'brake');
+                addTouchControls(steerLeftBtn, 'left');
+                addTouchControls(steerRightBtn, 'right');
+                
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    switch(e.code) {
+                        case 'ArrowUp': this.keys.accelerate = true; break;
+                        case 'ArrowDown': this.keys.brake = true; break;
+                        case 'ArrowLeft': this.keys.left = true; break;
+                        case 'ArrowRight': this.keys.right = true; break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    switch(e.code) {
+                        case 'ArrowUp': this.keys.accelerate = false; break;
+                        case 'ArrowDown': this.keys.brake = false; break;
+                        case 'ArrowLeft': this.keys.left = false; break;
+                        case 'ArrowRight': this.keys.right = false; break;
+                    }
+                });
+            }
+            
+            startGame() {
+                this.gameState = 'playing';
+                this.score = 0;
+                this.distance = 0;
+                this.speed = 0;
+                this.car.speed = 0;
+                this.car.x = this.canvas.width / 2;
+                this.obstacles = [];
+                
+                document.getElementById('instructions').classList.add('hidden');
+                document.getElementById('controls').classList.remove('hidden');
+                
+                requestAnimationFrame(this.gameLoop);
+            }
+            
+            update(deltaTime) {
+                if (this.gameState !== 'playing') return;
+                
+                // Car input handling
+                if (this.keys.accelerate) {
+                    this.car.acceleration = 0.3;
+                } else if (this.keys.brake) {
+                    this.car.acceleration = -0.5;
+                } else {
+                    this.car.acceleration = -0.1; // Natural deceleration
+                }
+                
+                // Steering
+                let steeringInput = 0;
+                if (this.keys.left) {
+                    steeringInput = -1;
+                }
+                if (this.keys.right) {
+                    steeringInput = 1;
+                }
+                
+                this.car.steering = steeringInput * 0.08; // Increased steering sensitivity
+                
+                // Update car speed
+                this.car.speed += this.car.acceleration;
+                this.car.speed = Math.max(0, Math.min(this.car.speed, this.maxSpeed / 10));
+                
+                // Update car position
+                if (Math.abs(this.car.steering) > 0.01) {
+                    this.car.x += this.car.steering * (this.car.speed + 1) * 25; // Better steering response
+                }
+                
+                // Keep car on road
+                const roadLeft = this.canvas.width / 2 - this.roadWidth / 2 + 20;
+                const roadRight = this.canvas.width / 2 + this.roadWidth / 2 - 60;
+                this.car.x = Math.max(roadLeft, Math.min(roadRight, this.car.x));
+                
+                // Update speed display
+                this.speed = Math.round(this.car.speed * 12);
+                document.getElementById('speed').textContent = this.speed;
+                
+                // Update distance and score
+                this.distance += this.car.speed;
+                this.score = Math.floor(this.distance / 10);
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('distance').textContent = Math.floor(this.distance);
+                
+                // Update road lines
+                this.roadLines.forEach(line => {
+                    line.y += (this.roadSpeed + this.car.speed) * 2;
+                    if (line.y > this.canvas.height) {
+                        line.y = -60;
+                    }
+                });
+                
+                // Spawn obstacles
+                this.obstacleSpawnTimer += deltaTime;
+                if (this.obstacleSpawnTimer > 2000 - this.car.speed * 100) {
+                    this.spawnObstacle();
+                    this.obstacleSpawnTimer = 0;
+                }
+                
+                // Update obstacles
+                this.obstacles = this.obstacles.filter(obstacle => {
+                    obstacle.y += (this.roadSpeed + this.car.speed) * 2;
+                    
+                    // Check collision
+                    if (this.checkCollision(this.car, obstacle)) {
+                        this.gameOver();
+                        return false;
+                    }
+                    
+                    return obstacle.y < this.canvas.height + 100;
+                });
+            }
+            
+            spawnObstacle() {
+                const roadLeft = this.canvas.width / 2 - this.roadWidth / 2;
+                const roadRight = this.canvas.width / 2 + this.roadWidth / 2;
+                
+                this.obstacles.push({
+                    x: roadLeft + Math.random() * (roadRight - roadLeft - 40),
+                    y: -100,
+                    width: 40,
+                    height: 60,
+                    type: Math.random() > 0.5 ? 'car' : 'cone'
+                });
+            }
+            
+            checkCollision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+            
+            gameOver() {
+                this.gameState = 'gameOver';
+                alert(`ゲームオーバー！\nスコア: ${this.score}\n距離: ${Math.floor(this.distance)}m`);
+                
+                document.getElementById('instructions').classList.remove('hidden');
+                document.getElementById('controls').classList.add('hidden');
+                
+                // Reset instructions text
+                document.querySelector('#instructions h2').textContent = '🚗 ゲームオーバー';
+                document.querySelector('#instructions p').textContent = `スコア: ${this.score} | 距離: ${Math.floor(this.distance)}m`;
+                document.getElementById('startBtn').textContent = 'もう一度プレイ';
+            }
+            
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw sky gradient
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#98FB98');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw road
+                this.ctx.fillStyle = '#333';
+                this.ctx.fillRect(this.canvas.width / 2 - this.roadWidth / 2, 0, this.roadWidth, this.canvas.height);
+                
+                // Draw road edges
+                this.ctx.fillStyle = '#fff';
+                this.ctx.fillRect(this.canvas.width / 2 - this.roadWidth / 2 - 5, 0, 5, this.canvas.height);
+                this.ctx.fillRect(this.canvas.width / 2 + this.roadWidth / 2, 0, 5, this.canvas.height);
+                
+                // Draw road lines
+                this.ctx.fillStyle = '#ff0';
+                this.roadLines.forEach(line => {
+                    this.ctx.fillRect(line.x - 2, line.y, 4, 30);
+                });
+                
+                // Draw obstacles
+                this.obstacles.forEach(obstacle => {
+                    if (obstacle.type === 'car') {
+                        // Draw other car
+                        this.ctx.fillStyle = '#e74c3c';
+                        this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        this.ctx.fillStyle = '#2c3e50';
+                        this.ctx.fillRect(obstacle.x + 5, obstacle.y + 5, 30, 15);
+                        this.ctx.fillRect(obstacle.x + 5, obstacle.y + 40, 30, 15);
+                    } else {
+                        // Draw traffic cone
+                        this.ctx.fillStyle = '#f39c12';
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(obstacle.x + obstacle.width / 2, obstacle.y);
+                        this.ctx.lineTo(obstacle.x, obstacle.y + obstacle.height);
+                        this.ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+                        this.ctx.closePath();
+                        this.ctx.fill();
+                        
+                        this.ctx.fillStyle = '#fff';
+                        this.ctx.fillRect(obstacle.x + 5, obstacle.y + 20, 30, 5);
+                        this.ctx.fillRect(obstacle.x + 5, obstacle.y + 35, 30, 5);
+                    }
+                });
+                
+                // Draw player car
+                this.ctx.fillStyle = '#3498db';
+                this.ctx.fillRect(this.car.x, this.car.y, this.car.width, this.car.height);
+                
+                // Car details
+                this.ctx.fillStyle = '#2c3e50';
+                this.ctx.fillRect(this.car.x + 5, this.car.y + 5, 30, 20);
+                this.ctx.fillRect(this.car.x + 5, this.car.y + 55, 30, 20);
+                
+                // Car lights
+                this.ctx.fillStyle = '#f1c40f';
+                this.ctx.fillRect(this.car.x + 10, this.car.y, 5, 8);
+                this.ctx.fillRect(this.car.x + 25, this.car.y, 5, 8);
+            }
+            
+            gameLoop(currentTime) {
+                const deltaTime = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+                
+                this.update(deltaTime);
+                this.render();
+                
+                if (this.gameState === 'playing') {
+                    requestAnimationFrame(this.gameLoop);
+                }
+            }
+        }
+        
+        // Initialize game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            const game = new CarDrivingGame();
+        });
+        
+        // Prevent scrolling on mobile
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
