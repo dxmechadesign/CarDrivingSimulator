@@ -63,13 +63,14 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 180px;
-            background: rgba(0, 0, 0, 0.7);
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 20px;
             pointer-events: auto;
+            z-index: 20;
         }
 
         .control-group {
@@ -273,7 +274,7 @@
                     this.canvas.height = window.innerHeight;
                     if (this.car) {
                         this.car.x = this.canvas.width / 2;
-                        this.car.y = this.canvas.height - 150;
+                        this.car.y = this.canvas.height - 280; // Move car higher to avoid control overlap
                     }
                 };
                 
@@ -329,6 +330,14 @@
                 addTouchControls(steerLeftBtn, 'left');
                 addTouchControls(steerRightBtn, 'right');
                 
+                // Debug: Check if buttons exist
+                console.log('Buttons found:', {
+                    accelerate: !!accelerateBtn,
+                    brake: !!brakeBtn,
+                    left: !!steerLeftBtn,
+                    right: !!steerRightBtn
+                });
+                
                 // Keyboard controls
                 document.addEventListener('keydown', (e) => {
                     switch(e.code) {
@@ -356,6 +365,7 @@
                 this.speed = 0;
                 this.car.speed = 0;
                 this.car.x = this.canvas.width / 2;
+                this.car.y = this.canvas.height - 280; // Consistent car position
                 this.obstacles = [];
                 
                 document.getElementById('instructions').classList.add('hidden');
@@ -369,9 +379,10 @@
                 
                 // Car input handling
                 if (this.keys.accelerate) {
-                    this.car.acceleration = 0.3;
+                    this.car.acceleration = 0.4;
                 } else if (this.keys.brake) {
-                    this.car.acceleration = -0.5;
+                    this.car.acceleration = -0.8; // Stronger braking
+                    console.log('Braking activated'); // Debug log
                 } else {
                     this.car.acceleration = -0.1; // Natural deceleration
                 }
@@ -536,6 +547,13 @@
                 this.ctx.fillStyle = '#f1c40f';
                 this.ctx.fillRect(this.car.x + 10, this.car.y, 5, 8);
                 this.ctx.fillRect(this.car.x + 25, this.car.y, 5, 8);
+                
+                // Brake lights when braking
+                if (this.keys.brake && this.car.speed > 0) {
+                    this.ctx.fillStyle = '#e74c3c';
+                    this.ctx.fillRect(this.car.x + 10, this.car.y + 72, 5, 8);
+                    this.ctx.fillRect(this.car.x + 25, this.car.y + 72, 5, 8);
+                }
             }
             
             gameLoop(currentTime) {
